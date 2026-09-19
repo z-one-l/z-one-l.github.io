@@ -1,0 +1,117 @@
+/* Page outline (assets/js/outline.js): Notion-style line table of contents at the right edge.
+   Theme-aware through al-folio's CSS variables. */
+.toc-lines {
+  position: fixed;
+  top: 50%;
+  right: 12px;
+  z-index: 1020;
+  transform: translateY(-50%);
+  padding: 14px 10px 14px 18px;
+}
+.toc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 11px;
+  transition: opacity 0.15s ease;
+}
+.toc-line {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--global-text-color-light, #828282);
+  opacity: 0.5;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
+}
+.toc-line.toc-l2 {
+  width: 11px;
+}
+.toc-line.active {
+  background: var(--global-text-color, #111);
+  opacity: 1;
+}
+
+/* the list: invisible until the rail is hovered or a link inside it receives keyboard focus */
+.toc-panel {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  min-width: 220px;
+  max-width: 300px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--global-bg-color, #fff);
+  border: 1px solid var(--global-divider-color, #e6e6e6);
+  border-radius: 12px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(6px, -50%);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+.toc-lines:hover .toc-panel,
+.toc-lines:focus-within .toc-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%);
+}
+.toc-lines:hover .toc-rail,
+.toc-lines:focus-within .toc-rail {
+  opacity: 0;
+}
+.toc-item {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--global-text-color-light, #828282) !important;
+  text-decoration: none !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+.toc-item.toc-l2 {
+  padding-left: 22px;
+}
+.toc-item:hover,
+.toc-item:focus-visible {
+  background: color-mix(in srgb, var(--global-text-color, #111) 7%, transparent);
+  color: var(--global-text-color, #111) !important;
+  outline: none;
+}
+.toc-item.active {
+  color: var(--global-theme-color, #b509ac) !important;
+  font-weight: 500;
+}
+
+/* only where the right margin has room for it */
+@media (max-width: 1099px) {
+  .toc-lines {
+    display: none;
+  }
+}
+@media print {
+  .toc-lines {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toc-rail,
+  .toc-line,
+  .toc-panel,
+  .toc-item {
+    transition: none;
+  }
+}
