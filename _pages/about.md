@@ -32,6 +32,7 @@ More broadly, I believe flow matching can drive inverse design and generation in
     <a class="if-btn if-btn-ghost" href="#if-joint">Two flows, one network</a>
     <a class="if-btn if-btn-ghost" href="#if-inside">Data pipeline</a>
     <a class="if-btn if-btn-ghost" href="#if-studio">Design a coating</a>
+    <a class="if-btn if-btn-ghost" href="#if-live">Try the model</a>
     <a class="if-btn if-btn-ghost" href="https://arxiv.org/abs/2607.08392">Paper</a>
   </p>
 </div>
@@ -60,6 +61,12 @@ This is how the framework is used.
 
 <div class="if-studio" data-if-studio></div>
 
+<h3 class="if-sec" id="if-live">Try the real model</h3>
+
+The panels above are illustrations. This one runs IrisFlow itself: your request goes to a [Hugging Face Space](https://huggingface.co/spaces/lz-1/IrisFlow), which borrows a GPU for a few seconds, generates several designs and re-simulates each one with the transfer-matrix method (normal incidence, from air onto a fused-silica substrate; layer 1 sits on the substrate). The materials that were never seen in training are given to the model only as their n,k curves. Hugging Face gives each anonymous visitor only a few GPU runs; after that, or when no GPU is free, the request runs on a CPU with at most 8 designs and takes longer. If nobody has used the Space for a while it sleeps, and the first request takes about a minute to wake it.
+
+<div class="if-live" data-if-live="lz-1/IrisFlow" data-presets="{{ '/assets/json/irisflow-presets.json' | relative_url }}"></div>
+
 <h3 class="if-sec" id="if-paper">Paper</h3>
 
 IrisFlow is described in the preprint below. I conceived and designed the study, developed the framework, implemented the code, ran the simulations and benchmarks, and wrote the manuscript; my co-authors fabricated the samples and supervised the project.
@@ -78,4 +85,5 @@ title is moved out of the way first because the filter would otherwise fold it i
 </div>
 
 <script defer src="{{ '/assets/js/irisflow/irisflow.js' | relative_url | bust_file_cache }}"></script>
+<script defer src="{{ '/assets/js/irisflow/live.js' | relative_url | bust_file_cache }}"></script>
 <script defer src="{{ '/assets/js/outline.js' | relative_url | bust_file_cache }}"></script>

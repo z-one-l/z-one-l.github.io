@@ -335,3 +335,174 @@
 .if-map-card a {
   white-space: nowrap;
 }
+
+/* ---------------- live demo: the real model on a Hugging Face Space (live.js) ---------------- */
+.if-live {
+  --if-text: var(--global-text-color, #111);
+  --if-muted: var(--global-text-color-light, #828282);
+  --if-bg: var(--global-bg-color, #fff);
+  --if-card: var(--global-card-bg-color, #fff);
+  --if-line: var(--global-divider-color, #e6e6e6);
+  --if-accent: var(--global-theme-color, #b509ac);
+  --if-r: #d64545;
+  --if-t: #2f6fd6;
+  margin: 1rem 0 1.4rem;
+  border: 1px solid var(--if-line);
+  border-radius: 14px;
+  background: var(--if-card);
+  padding: 0.9rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.if-live .if-studio-ctl {
+  margin: 0.1rem 0 0.6rem;
+}
+.if-live .if-studio-ctl + .if-studio-ctl {
+  margin-top: 0.9rem;
+}
+/* panels that swap in place share one grid cell, so the row keeps the height of the tallest */
+.if-live-stackcell {
+  display: grid;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.if-live-mode {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  visibility: hidden;
+}
+.if-live-mode.on {
+  visibility: visible;
+}
+.if-live-select,
+.if-live-num,
+.if-live-file {
+  font-size: 0.85rem;
+  color: var(--if-text);
+  background: var(--if-bg);
+  border: 1px solid var(--if-line);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  max-width: 100%;
+}
+.if-live-num {
+  width: 5.2rem;
+}
+.if-live-file {
+  padding: 0.2rem 0.3rem;
+}
+.if-live-chart,
+.if-live-stack {
+  width: 100%;
+  min-width: 0;
+}
+.if-live-chart canvas,
+.if-live-stack canvas {
+  display: block;
+}
+.if-live-desc {
+  min-height: 2.6em;
+  margin: 0.3rem 0 0.2rem;
+  line-height: 1.4;
+}
+.if-live .if-pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.if-live .if-studio-run .if-btn:disabled {
+  opacity: 0.55;
+}
+.if-live-status {
+  flex: 1 1 14rem;
+  min-height: 2.6em;
+  display: flex;
+  align-items: center;
+  line-height: 1.35;
+}
+.if-live-hf {
+  white-space: nowrap;
+}
+.if-live-out {
+  border-top: 1px dashed var(--if-line);
+  padding-top: 0.6rem;
+  margin-top: 0.4rem;
+}
+.if-live-outhead {
+  margin-bottom: 0.4rem !important;
+}
+.if-live-picks {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  height: 2.1rem;
+  -webkit-overflow-scrolling: touch;
+}
+.if-live-picks .if-pill {
+  flex: 0 0 auto;
+}
+.if-live-mae {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.if-live-hover {
+  min-height: 1.4em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0.1rem 0 0.4rem;
+}
+.if-live-table {
+  height: 13rem;
+  overflow-y: auto;
+  border: 1px solid var(--if-line);
+  border-radius: 8px;
+}
+.if-live-out.empty .if-live-table {
+  border-style: dashed;
+}
+.if-live-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--if-text);
+}
+.if-live-table th {
+  position: sticky;
+  top: 0;
+  background: var(--if-card);
+  font-weight: 600;
+  text-align: left;
+  color: var(--if-muted);
+  border-bottom: 1px solid var(--if-line);
+}
+.if-live-table th,
+.if-live-table td {
+  padding: 0.22rem 0.6rem;
+}
+.if-live-table td:last-child,
+.if-live-table th:last-child {
+  text-align: right;
+}
+.if-live-table tr.on td {
+  background: color-mix(in srgb, var(--if-accent) 12%, transparent);
+}
+.if-live-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.if-live input[type="range"] {
+  accent-color: var(--if-accent);
+}
+@media (max-width: 600px) {
+  .if-live-status {
+    min-height: 4em;
+  }
+}
