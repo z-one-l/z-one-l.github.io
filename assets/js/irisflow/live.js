@@ -17,6 +17,10 @@
     Au: "#d4a72c", Al: "#c3c9d1", W: "#6f7a86", Pt: "#959da8", Nb: "#56606c", ZnO: "#9ccf63", CeO2: "#e0c46c", Y2O3: "#69b3a2", HfO2: "#5fa8b8", ZrO2: "#b7a26a", ITO: "#3fae8e", AZO: "#7fbf9a", FTO: "#4f9a7a", PET: "#e39bb5", PMMA: "#d88aa0" };
   var MAT = {};
   MATERIALS.forEach(function (m) { MAT[m[0]] = { id: m[0], name: m[1], cls: m[2], trained: !!m[3], col: MAT_COL[m[0]] }; });
+  /* rows of the material picker, by class */
+  var FAMILIES = [["Dielectrics", ["dielectric"]], ["Metals", ["metal"]], ["Phase-change", ["phase-change"]], ["Other", ["semiconductor", "conductor", "polymer"]]];
+  /* materials a visitor uploads as n,k data: how many, how many rows are sent, and their colours */
+  var MAX_OWN = 5, MAX_NK_ROWS = 2000, OWN_COL = ["#1fa39a", "#b0643a", "#c2577a", "#8a8f2a", "#6a5acd"];
 
   /* ============================ helpers ============================ */
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
@@ -59,8 +63,10 @@
       mode: "preset", preset: 0, target: null,
       draw: { lo: 420, hi: 1000, R: [], T: [], edit: "R", linked: true },
       csv: null, mats: {}, layers: 18, samples: 16, rank: "match",
-      result: null, example: false, pick: 0, busy: false, hover: -1
+      result: null, example: false, pick: 0, busy: false, hover: -1,
+      own: [] /* ids of uploaded materials, in upload order */
     };
+    var ownSeq = 0;
     MATERIALS.forEach(function (m) { if (m[3]) st.mats[m[0]] = true; });
     for (var k = 0; k < KNOTS; k++) { var u = k / (KNOTS - 1); st.draw.R.push(clamp(0.05 + 0.85 * Math.exp(-Math.pow((u - 0.5) / 0.16, 2)), 0, 1)); st.draw.T.push(1 - st.draw.R[k]); }
 
@@ -91,16 +97,43 @@
     var desc = el("div", "if-small if-live-desc");
 
     var row2 = el("div", "if-studio-ctl"); row2.appendChild(el("span", "if-gtitle", "2 · Design space"));
-    var gTr = grp("seen in training", row2), gNew = grp("never seen in training", row2), matBtns = {};
-    MATERIALS.forEach(function (m) {
-      var b = pill('<span class="if-swatch" style="background:' + MAT[m[0]].col + '"></span>' + esc(m[1]), function () { toggleMat(m[0]); });
-      b.title = m[2] + (m[3] ? "" : " · the model gets only its n,k curve"); matBtns[m[0]] = b; (m[3] ? gTr : gNew).appendChild(b);
+    /* materials by family, one row each; a dashed chip was never seen in training */
+    var matBox = el("div", "if-live-mats"), matBtns = {};
+    function matChip(id) {
+      var m = MAT[id], b = el("button", "if-mat" + (m.trained ? "" : " unseen"), '<span class="if-swatch" style="background:' + m.col + '"></span>' + esc(m.name));
+      b.type = "button"; b.setAttribute("aria-pressed", "false");
+      b.title = m.own ? m.name + " · your n,k data, " + Math.round(m.wl[0]) + "–" + Math.round(m.wl[m.wl.length - 1]) + " nm" : m.cls + (m.trained ? " · seen in training" : " · never seen in training: the model gets only its n,k curve");
+      b.addEventListener("click", function () { toggleMat(id); }); matBtns[id] = b; return b;
+    }
+    FAMILIES.forEach(function (f) {
+      var row = el("div", "if-live-matrow"), chips = el("div", "if-live-matchips");
+      row.appendChild(el("span", "if-live-matlabel", f[0]));
+      MATERIALS.forEach(function (m) { if (f[1].indexOf(m[2]) >= 0) chips.appendChild(matChip(m[0])); });
+      row.appendChild(chips); matBox.appendChild(row);
     });
-    var gL = grp("layers", row2), layerIn = el("input"), layerVal = el("span", "if-gval");
+    /* your own materials: a CSV of wavelength, n, k */
+    var ownRow = el("div", "if-live-matrow"), ownChips = el("div", "if-live-matchips"), ownNote = el("span", "if-small if-live-ownnote");
+    var addBtn = el("button", "if-mat if-mat-add", "+ n,k"), nkIn = el("input"), exLink = el("a", "", "example file");
+    addBtn.type = "button"; addBtn.title = "Add a material of your own from its n,k data";
+    nkIn.type = "file"; nkIn.accept = ".csv,.txt,.tsv,.nk,text/csv,text/plain"; nkIn.hidden = true; nkIn.setAttribute("aria-label", "n,k data file");
+    exLink.href = "#"; exLink.addEventListener("click", function (ev) { ev.preventDefault(); downloadText(exampleNk(), "example-nk.csv"); });
+    addBtn.addEventListener("click", function () { nkIn.value = ""; nkIn.click(); });
+    nkIn.addEventListener("change", function () { var f = nkIn.files && nkIn.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { addOwn(String(rd.result), f.name); }; rd.readAsText(f); });
+    ownRow.appendChild(el("span", "if-live-matlabel", "Yours")); ownRow.appendChild(ownChips); matBox.appendChild(ownRow);
+    function ownHelp() { ownNote.innerHTML = "A CSV of wavelength (nm or µm), n and k, covering the target band. "; ownNote.appendChild(exLink); }
+    var matFoot = el("div", "if-live-matfoot"), matCount = el("span", "if-small if-live-matcount");
+    var allTrained = el("button", "if-linkbtn", "Training set"), noneBtn = el("button", "if-linkbtn", "Clear");
+    allTrained.type = noneBtn.type = "button";
+    allTrained.addEventListener("click", function () { st.mats = {}; MATERIALS.forEach(function (m) { if (m[3]) st.mats[m[0]] = true; }); syncMats(); });
+    noneBtn.addEventListener("click", function () { st.mats = {}; syncMats(); });
+    matFoot.appendChild(matCount); matFoot.appendChild(el("span", "if-small", "Dashed: never seen in training; the model gets only its n,k curve."));
+    matFoot.appendChild(allTrained); matFoot.appendChild(noneBtn);
+    var row2b = el("div", "if-studio-ctl if-live-sizes");
+    var gL = grp("layers", row2b), layerIn = el("input"), layerVal = el("span", "if-gval");
     layerIn.type = "range"; layerIn.min = 2; layerIn.max = 60; layerIn.step = 1; layerIn.setAttribute("aria-label", "Number of layers");
     layerIn.addEventListener("input", function () { st.layers = +layerIn.value; layerVal.textContent = st.layers; });
     gL.appendChild(layerIn); gL.appendChild(layerVal);
-    var gN = grp("designs", row2), nBtns = {};
+    var gN = grp("designs", row2b), nBtns = {};
     [8, 16, 32].forEach(function (n) { nBtns[n] = pill(String(n), function () { st.samples = n; syncN(); }); gN.appendChild(nBtns[n]); });
 
     var row3 = el("div", "if-studio-ctl if-studio-run"), goBtn = el("button", "if-btn", "Design with IrisFlow");
@@ -120,13 +153,11 @@
     copyBtn.type = dlBtn.type = "button"; actions.appendChild(copyBtn); actions.appendChild(dlBtn);
     copyBtn.addEventListener("click", function () { var d = current(); if (d && navigator.clipboard) navigator.clipboard.writeText(recipeCsv(d)).then(function () { flash(copyBtn, "Copied"); }); });
     dlBtn.addEventListener("click", function () {
-      var d = current(); if (!d) return;
-      var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([recipeCsv(d)], { type: "text/csv" })); a.download = "irisflow-design.csv";
-      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      var d = current(); if (d) downloadText(recipeCsv(d), "irisflow-design.csv");
     });
     [outHead, picks, stackBox, hoverLine, tableBox, actions].forEach(function (x) { out.appendChild(x); });
 
-    [row1, chartBox, desc, row2, row3, out].forEach(function (x) { container.appendChild(x); });
+    [row1, chartBox, desc, row2, matBox, matFoot, row2b, row3, out].forEach(function (x) { container.appendChild(x); });
 
     /* ---- target ---- */
     function drawCurve(arr, lam) { var u = clamp((lam - st.draw.lo) / (st.draw.hi - st.draw.lo), 0, 1) * (KNOTS - 1), i = Math.min(KNOTS - 2, Math.floor(u)), g = u - i, w = (1 - Math.cos(Math.PI * g)) / 2; return arr[i] * (1 - w) + arr[i + 1] * w; }
@@ -184,12 +215,55 @@
       linkBtn.classList.toggle("active", st.draw.linked); editT.disabled = st.draw.linked;
       syncDesc(); render();
     }
-    function syncMats() { MATERIALS.forEach(function (m) { matBtns[m[0]].classList.toggle("active", !!st.mats[m[0]]); }); }
-    function nMats() { return Object.keys(st.mats).filter(function (k) { return st.mats[k]; }).length; }
+    function syncMats() {
+      Object.keys(matBtns).forEach(function (id) { var on = !!st.mats[id]; matBtns[id].classList.toggle("active", on); matBtns[id].setAttribute("aria-pressed", on ? "true" : "false"); });
+      var n = nMats();
+      matCount.textContent = n + " selected" + (n < MIN_MATS ? ": choose at least " + MIN_MATS : n > MAX_MATS ? ": at most " + MAX_MATS + ", deselect " + (n - MAX_MATS) : "");
+      matCount.classList.toggle("if-warn", n < MIN_MATS || n > MAX_MATS);
+    }
+    function selected() { return MATERIALS.map(function (m) { return m[0]; }).concat(st.own).filter(function (k) { return st.mats[k]; }); }
+    function nMats() { return selected().length; }
     function toggleMat(id) {
-      if (st.mats[id] && nMats() <= MIN_MATS) { status.textContent = "Keep at least " + MIN_MATS + " materials: the model was trained with pools of 3 to 15. It does not have to use all of them."; return; }
-      if (!st.mats[id] && nMats() >= MAX_MATS) { status.textContent = "At most " + MAX_MATS + " materials per request."; return; }
+      if (!st.mats[id] && nMats() >= MAX_MATS) { status.textContent = "At most " + MAX_MATS + " materials per request; deselect one first."; return; }
       st.mats[id] = !st.mats[id]; syncMats();
+    }
+    /* uploaded n,k: columns wavelength (nm, or µm when all values are below 30), n, and optionally k (either sign) */
+    function addOwn(text, file) {
+      if (st.own.length >= MAX_OWN) { ownNote.textContent = "At most " + MAX_OWN + " materials of your own; remove one first."; return; }
+      var rows = [];
+      text.split(/\r?\n/).forEach(function (line) {
+        var c = line.trim().split(/[\s,;]+/).map(Number);
+        if (c.length >= 2 && c.slice(0, Math.min(3, c.length)).every(function (x) { return isFinite(x); })) rows.push(c);
+      });
+      rows.sort(function (a, b) { return a[0] - b[0]; });
+      rows = rows.filter(function (r, i) { return i === 0 || r[0] > rows[i - 1][0]; });
+      if (rows.length < 2) { ownNote.textContent = "Could not read wavelength, n, k rows from " + file + "."; return; }
+      var um = rows[rows.length - 1][0] < 30;
+      if (rows.some(function (r) { return !(r[1] > 0 && r[1] <= 20) || Math.abs(r[2] || 0) > 50 || r[0] <= 0; })) { ownNote.textContent = file + ": expected n between 0 and 20 and |k| up to 50."; return; }
+      if (rows.length > MAX_NK_ROWS) { var step = rows.length / MAX_NK_ROWS; rows = rows.filter(function (r, i) { return Math.floor(i / step) !== Math.floor((i - 1) / step) || i === rows.length - 1; }); }
+      var name = file.replace(/\.[^.]*$/, "").replace(/[^\w .+()-]/g, "").trim().slice(0, 20) || "material", base = name, j = 2;
+      while (Object.keys(MAT).some(function (k) { return !MAT[k].removed && MAT[k].name.toLowerCase() === name.toLowerCase(); })) name = base + "-" + j++;
+      var id = "u" + (++ownSeq), m = { id: id, name: name, cls: "yours", trained: false, own: true, col: OWN_COL[(ownSeq - 1) % OWN_COL.length],
+        wl: rows.map(function (r) { return um ? r[0] * 1000 : r[0]; }), n: rows.map(function (r) { return r[1]; }), k: rows.map(function (r) { return Math.abs(r[2] || 0); }) };
+      MAT[id] = m; st.own.push(id);
+      var wrap = el("span", "if-mat-own"), del = el("button", "if-mat-del", "×");
+      del.type = "button"; del.setAttribute("aria-label", "Remove " + name); del.title = "Remove";
+      del.addEventListener("click", function () { m.removed = true; delete st.mats[id]; st.own.splice(st.own.indexOf(id), 1); delete matBtns[id]; wrap.remove(); ownHelp(); syncMats(); });
+      wrap.appendChild(matChip(id)); wrap.appendChild(del); ownChips.insertBefore(wrap, addBtn);
+      st.mats[id] = true; /* always: it is the one the visitor wants to try, even if that goes over the limit for now */
+      var lo = m.wl[0], hi = m.wl[m.wl.length - 1], t = st.target, covers = !t || (lo <= t.wl[0] + 1 && hi >= t.wl[t.wl.length - 1] - 1);
+      ownNote.textContent = "Added " + name + ": " + Math.round(lo) + "–" + Math.round(hi) + " nm, " + rows.length + " points" + (um ? " (µm)" : "") + (rows[0].length > 2 ? "" : ", k = 0") + "." +
+        (covers ? (nMats() > MAX_MATS ? " Deselect another material to stay within " + MAX_MATS + "." : "") : " It does not cover the current target (" + Math.round(t.wl[0]) + "–" + Math.round(t.wl[t.wl.length - 1]) + " nm).");
+      syncMats();
+    }
+    function exampleNk() {
+      var s = "wavelength_nm,n,k\n";
+      for (var l = 380; l <= 1400; l += 20) { var u = l / 1000; s += l + "," + (2.05 + 0.025 / (u * u)).toFixed(4) + ",0\n"; }
+      return s;
+    }
+    function downloadText(text, name) {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = name;
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
     }
     function syncLayers() { layerIn.value = st.layers; layerVal.textContent = st.layers; }
     function syncN() { [8, 16, 32].forEach(function (n) { nBtns[n].classList.toggle("active", n === st.samples); }); }
@@ -294,7 +368,7 @@
       } else { ctx.strokeStyle = th.line; ctx.setLineDash([4, 4]); ctx.strokeRect(sw + 0.5, top + 0.5, W - sw - aw - 1, h - 1); ctx.setLineDash([]); }
       /* table */
       if (d) {
-        var rows = d.layers.map(function (l, i) { return "<tr data-i=\"" + i + "\"" + (i === st.hover ? " class=\"on\"" : "") + "><td>" + (i + 1) + "</td><td><span class=\"if-swatch\" style=\"background:" + MAT[l.material].col + "\"></span> " + esc(MAT[l.material].name) + (MAT[l.material].trained ? "" : " <span class=\"if-small\">unseen</span>") + "</td><td>" + l.thickness_nm.toFixed(1) + "</td></tr>"; }).join("");
+        var rows = d.layers.map(function (l, i) { return "<tr data-i=\"" + i + "\"" + (i === st.hover ? " class=\"on\"" : "") + "><td>" + (i + 1) + "</td><td><span class=\"if-swatch\" style=\"background:" + MAT[l.material].col + "\"></span> " + esc(MAT[l.material].name) + (MAT[l.material].own ? " <span class=\"if-small\">yours</span>" : MAT[l.material].trained ? "" : " <span class=\"if-small\">unseen</span>") + "</td><td>" + l.thickness_nm.toFixed(1) + "</td></tr>"; }).join("");
         tableBox.innerHTML = "<table><thead><tr><th title=\"Layer 1 sits on the fused-silica substrate\">layer</th><th>material</th><th>thickness (nm)</th></tr></thead><tbody>" + rows + "</tbody></table>";
         hoverLine.innerHTML = st.hover >= 0 && d.layers[st.hover] ? "Layer " + (st.hover + 1) + " · " + esc(MAT[d.layers[st.hover].material].name) + " · " + d.layers[st.hover].thickness_nm.toFixed(1) + " nm" :
           d.layers.length + " layers · " + d.n_materials + " materials · " + Math.round(d.total_nm) + " nm in total · mean |error| " + d.mae.toFixed(3);
@@ -356,8 +430,14 @@
 
     function run() {
       if (st.busy || !st.target) { if (!st.target) status.textContent = st.mode === "csv" ? "Choose a CSV file first." : "The target is not ready yet."; return; }
-      var req = { wavelengths_nm: st.target.wl, R: st.target.R, T: st.target.T, materials: MATERIALS.map(function (m) { return m[0]; }).filter(function (k) { return st.mats[k]; }),
+      var mats = selected(), tlo = st.target.wl[0], thi = st.target.wl[st.target.wl.length - 1];
+      if (mats.length < MIN_MATS || mats.length > MAX_MATS) { status.textContent = (mats.length < MIN_MATS ? "Choose at least " + MIN_MATS : "Choose at most " + MAX_MATS) + " materials: the model was trained with pools of 3 to 15. It does not have to use all of them."; return; }
+      var short = mats.filter(function (k) { var m = MAT[k]; return m.own && (m.wl[0] > tlo + 1 || m.wl[m.wl.length - 1] < thi - 1); })[0];
+      if (short) { var sm = MAT[short]; status.textContent = sm.name + " has n,k data for " + Math.round(sm.wl[0]) + "–" + Math.round(sm.wl[sm.wl.length - 1]) + " nm, but the target spans " + Math.round(tlo) + "–" + Math.round(thi) + " nm. Deselect it or upload data covering the band."; return; }
+      var req = { wavelengths_nm: st.target.wl, R: st.target.R, T: st.target.T, materials: mats,
         layers: st.layers, samples: st.samples, steps: 100, seed: Math.floor(Math.random() * 1e9) };
+      var own = mats.filter(function (k) { return MAT[k].own; });
+      if (own.length) req.custom_materials = own.map(function (k) { var m = MAT[k]; return { id: k, name: m.name, wavelengths_nm: m.wl, n: m.n, k: m.k }; });
       var t0 = Date.now(), timer = null, target = st.target;
       st.busy = true; goBtn.disabled = true; st.result = null; st.example = false; renderOut(); render();
       function tick(prefix) { clearInterval(timer); var f = function () { status.textContent = prefix + " " + Math.round((Date.now() - t0) / 1000) + " s"; }; f(); timer = setInterval(f, 1000); }
@@ -379,6 +459,7 @@
     }
 
     /* ---- boot ---- */
+    ownChips.appendChild(addBtn); ownChips.appendChild(nkIn); ownChips.appendChild(ownNote); ownHelp();
     syncMats(); syncLayers(); syncN(); syncDraw(); setMode("preset");
     fetch(PRESET_URL).then(function (r) { return r.json(); }).then(function (p) {
       presets = p; presetSel.innerHTML = p.map(function (x, i) { return "<option value=\"" + i + "\">" + esc(x.name) + "</option>"; }).join("");
