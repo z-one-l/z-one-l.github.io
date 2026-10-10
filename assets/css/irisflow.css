@@ -1,91 +1,20 @@
-/* IrisFlow interactive components — theme-aware via al-folio CSS variables with fallbacks */
-.if-home-head,
-.if-sec,
-.if-links,
-.if-lead {
-  --if-text: var(--global-text-color, #111);
-  --if-muted: var(--global-text-color-light, #828282);
-  --if-bg: var(--global-bg-color, #fff);
-  --if-card: var(--global-card-bg-color, #fff);
-  --if-line: var(--global-divider-color, #e6e6e6);
-  --if-accent: var(--global-theme-color, #b509ac);
-  --if-r: #d64545;
-  --if-t: #2f6fd6;
-}
-
-/* home page: the IrisFlow block under the bio */
-.if-home-head {
-  margin: 2.6rem 0 0.4rem;
-  padding-top: 1.6rem;
-  border-top: 1px solid var(--if-line);
-  scroll-margin-top: 3.5rem;
-}
-.if-home-head .if-hero-title {
-  font-size: 2rem;
-}
-.if-sec {
-  margin: 2.4rem 0 0.7rem;
-  padding-left: 0.7rem;
-  border-left: 4px solid var(--if-accent);
-  font-size: 1.45rem;
-  line-height: 1.3;
-  scroll-margin-top: 4.5rem;
-}
-
-.if-kicker {
-  display: inline-block;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--if-accent);
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-.if-hero-title {
-  margin: 0 0 0.4rem;
-  font-size: 1.6rem;
-  line-height: 1.25;
-}
-.if-hero-sub {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: var(--if-muted);
-}
-.if-lead {
-  font-size: 1.08rem;
-  line-height: 1.6;
-  margin-bottom: 1.2rem;
-}
+/* IrisFlow interactive components — theme-aware via al-folio CSS variables with fallbacks.
+   The variables (--if-*) are defined on each panel container below. */
 .if-btn {
   display: inline-block;
   margin-top: 0.6rem;
-  padding: 0.5rem 0.95rem;
-  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
   background: var(--if-accent);
-  color: #fff !important;
+  color: var(--if-bg) !important;
   text-decoration: none !important;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.92rem;
   border: 1px solid var(--if-accent);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
 }
 .if-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-}
-.if-btn-ghost {
-  background: transparent;
-  color: var(--if-accent) !important;
-}
-.if-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.6rem 0 1.4rem;
-}
-.if-links .if-btn {
-  margin-top: 0;
+  filter: brightness(1.12);
 }
 
 /* shared controls */
@@ -168,7 +97,7 @@
 .if-pill.active {
   background: var(--if-accent);
   border-color: var(--if-accent);
-  color: #fff;
+  color: var(--if-bg);
 }
 
 .if-btn:disabled {
@@ -378,6 +307,9 @@
 .if-live-mode.on {
   visibility: visible;
 }
+/* also the speed menus of the joint and pipeline animations, which have no class of their own */
+.if-idea select,
+.if-pipeline select,
 .if-live-select,
 .if-live-num,
 .if-live-file {
@@ -447,6 +379,7 @@
   flex: 0 0 auto;
 }
 .if-live-mae {
+  color: inherit;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
@@ -482,9 +415,11 @@
   color: var(--if-muted);
   border-bottom: 1px solid var(--if-line);
 }
-.if-live-table th,
-.if-live-table td {
+/* "table" in the selector outweighs the theme's `table:not(.table) td`, which sets 1rem text and wide padding */
+.if-live-table table th,
+.if-live-table table td {
   padding: 0.22rem 0.6rem;
+  font-size: inherit;
 }
 .if-live-table td:last-child,
 .if-live-table th:last-child {
