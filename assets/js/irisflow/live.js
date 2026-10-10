@@ -59,7 +59,7 @@
       mode: "preset", preset: 0, target: null,
       draw: { lo: 420, hi: 1000, R: [], T: [], edit: "R", linked: true },
       csv: null, mats: {}, layers: 18, samples: 16, rank: "match",
-      result: null, pick: 0, busy: false, hover: -1
+      result: null, example: false, pick: 0, busy: false, hover: -1
     };
     MATERIALS.forEach(function (m) { if (m[3]) st.mats[m[0]] = true; });
     for (var k = 0; k < KNOTS; k++) { var u = k / (KNOTS - 1); st.draw.R.push(clamp(0.05 + 0.85 * Math.exp(-Math.pow((u - 0.5) / 0.16, 2)), 0, 1)); st.draw.T.push(1 - st.draw.R[k]); }
@@ -136,6 +136,7 @@
       else if (st.mode === "draw") { var wl = kGrid(st.draw.lo, st.draw.hi); t = { wl: wl, R: wl.map(function (l) { return drawCurve(st.draw.R, l); }), T: wl.map(function (l) { return drawCurve(st.draw.T, l); }) }; }
       else if (st.mode === "csv" && st.csv) t = st.csv.t;
       st.target = t; st.result = null; st.pick = 0;
+      if (st.example) { st.example = false; status.textContent = ""; }
       if (t) t.gaps = gapsOf(t.wl);
       syncDesc(); render(); renderOut();
     }
@@ -209,7 +210,8 @@
       [0, 0.5, 1].forEach(function (v) { ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke(); ctx.fillText(String(v), x0 - 6, Y(v)); });
       var span = xr[1] - xr[0], step = [10, 20, 50, 100, 200, 250, 500].filter(function (s) { return span / s <= (W < 480 ? 5 : 9); })[0] || 500;
       ctx.textAlign = "center"; ctx.textBaseline = "top";
-      for (var l = Math.ceil(xr[0] / step) * step; l <= xr[1] + 1e-6; l += step) { ctx.fillText(String(l), X(l), y0 + 6); ctx.beginPath(); ctx.moveTo(X(l), y0); ctx.lineTo(X(l), y0 + 3); ctx.stroke(); }
+      /* a label that would cross the axis start is left out, so it never runs into the "nm" unit */
+      for (var l = Math.ceil(xr[0] / step) * step; l <= xr[1] + 1e-6; l += step) { if (X(l) - ctx.measureText(String(l)).width / 2 >= x0 - 2) ctx.fillText(String(l), X(l), y0 + 6); ctx.beginPath(); ctx.moveTo(X(l), y0); ctx.lineTo(X(l), y0 + 3); ctx.stroke(); }
       ctx.textAlign = "right"; ctx.fillText("nm", x0 - 6, y0 + 6);
       function line(wl, ys, col, dash, width, gaps) {
         ctx.strokeStyle = col; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath();
@@ -357,7 +359,7 @@
       var req = { wavelengths_nm: st.target.wl, R: st.target.R, T: st.target.T, materials: MATERIALS.map(function (m) { return m[0]; }).filter(function (k) { return st.mats[k]; }),
         layers: st.layers, samples: st.samples, steps: 100, seed: Math.floor(Math.random() * 1e9) };
       var t0 = Date.now(), timer = null, target = st.target;
-      st.busy = true; goBtn.disabled = true; st.result = null; renderOut(); render();
+      st.busy = true; goBtn.disabled = true; st.result = null; st.example = false; renderOut(); render();
       function tick(prefix) { clearInterval(timer); var f = function () { status.textContent = prefix + " " + Math.round((Date.now() - t0) / 1000) + " s"; }; f(); timer = setInterval(f, 1000); }
       tick("Contacting the model…");
       ensureAwake(function () { tick("The model was asleep and is starting up on Hugging Face (about a minute)…"); })
@@ -381,6 +383,11 @@
     fetch(PRESET_URL).then(function (r) { return r.json(); }).then(function (p) {
       presets = p; presetSel.innerHTML = p.map(function (x, i) { return "<option value=\"" + i + "\">" + esc(x.name) + "</option>"; }).join("");
       st.layers = p[0].layers; syncLayers(); setTarget();
+      /* the first preset carries one earlier run of the default request, shown until the visitor changes something */
+      if (p[0].example) {
+        st.result = p[0].example; st.example = true; renderOut(); render();
+        status.textContent = "Example: designs the model generated earlier for this target. Press “Design with IrisFlow” to run it yourself.";
+      }
     }).catch(function () { desc.textContent = "Could not load the preset targets; draw a target or upload one instead."; });
     /* wake the Space as soon as the panel comes into view, so it is ready by the time a request is set up */
     var woke = false;

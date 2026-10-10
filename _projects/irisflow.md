@@ -5,12 +5,12 @@ description: Inverse design of multilayer optical coatings where the design spac
 img: assets/img/irisflow/card.png
 importance: 1
 category: research
-redirect: /#irisflow # the IrisFlow demos live on the home page; the project card links there too
+redirect: /irisflow/ # IrisFlow has its own page; the project card links there too
 sitemap: false
 ---
 
-IrisFlow now lives on the [home page]({{ '/#irisflow' | relative_url }}).
+IrisFlow now has [its own page]({{ '/irisflow/' | relative_url }}).
 
 <script>
-  location.replace("{{ '/#irisflow' | relative_url }}");
+  location.replace("{{ '/irisflow/' | relative_url }}");
 </script>

@@ -21,7 +21,7 @@ url: https://z-one-l.github.io # the base hostname & protocol for your site
 baseurl: # the subpath of your site, e.g. /blog/. Leave blank for root
 last_updated: true # set to true if you want to display last updated in the footer
 impressum_path: # set to path to include impressum link in the footer, use the same path as permalink in a page, helps to conform with EU GDPR
-back_to_top: true # set to false to disable the back to top button
+back_to_top: false # set to false to disable the back to top button
 
 # -----------------------------------------------------------------------------
 # Theme
@@ -94,8 +94,8 @@ al_folio:
 # -----------------------------------------------------------------------------
 
 navbar_fixed: true
-footer_fixed: true
-search_enabled: true
+footer_fixed: false
+search_enabled: false
 socials_in_search: false # off so the search box does not carry a (merely percent-encoded) copy of the email address
 posts_in_search: true
 bib_search: true
@@ -469,7 +469,7 @@ enable_darkmode: true # enables switching between light/dark modes
 enable_navbar_social: false # enables displaying social links in the navbar on the about page
 enable_project_categories: false # enables categorization of projects into multiple categories
 enable_medium_zoom: true # enables image zoom feature (as on medium.com)
-enable_progressbar: true # enables a horizontal progress bar linked to the vertical scroll position
+enable_progressbar: false # enables a horizontal progress bar linked to the vertical scroll position
 enable_video_embedding: false # enables video embedding for bibtex entries. If false, the button opens the video link in a new window.
 
 # -----------------------------------------------------------------------------
@@ -533,7 +533,7 @@ third_party_libraries:
     version: "5.5.0"
   google_fonts:
     url:
-      fonts: "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&display=swap"
+      fonts: "/assets/css/fonts.css" # self-hosted Inter and Source Serif 4 instead of Google Fonts
   highlightjs:
     integrity:
       css:

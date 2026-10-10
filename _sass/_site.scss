@@ -1,0 +1,407 @@
+/*******************************************************************************
+ * Site design layer ("quiet academic"), loaded last by assets/css/main.scss.
+ * A serif (Source Serif 4) for names and headings, Inter for text, near-black
+ * text and one deep-blue accent. The IrisFlow panels read the same colour
+ * variables, so they follow the accent and the dark theme.
+ ******************************************************************************/
+
+:root {
+  --site-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --site-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --site-soft: #f4f5f7;
+
+  --global-bg-color: #ffffff;
+  --global-text-color: #1b1c20;
+  --global-text-color-light: #6a6b73;
+  --global-theme-color: #1f4387;
+  --global-hover-color: #1f4387;
+  --global-divider-color: rgba(20, 22, 30, 0.1);
+  --global-card-bg-color: #ffffff;
+  --global-footer-bg-color: transparent;
+  --global-footer-text-color: #8b8c94;
+  --global-footer-link-color: #6a6b73;
+}
+
+html[data-theme="dark"] {
+  --site-soft: #1d1f24;
+
+  --global-bg-color: #141518;
+  --global-text-color: #e3e4e8;
+  --global-text-color-light: #9b9ca5;
+  --global-theme-color: #9db8ee;
+  --global-hover-color: #9db8ee;
+  --global-divider-color: rgba(255, 255, 255, 0.1);
+  --global-card-bg-color: #191a1e;
+  --global-footer-bg-color: transparent;
+  --global-footer-text-color: #7c7d86;
+  --global-footer-link-color: #9b9ca5;
+}
+
+/* ---------------------------------------------------------------- text */
+body {
+  font-family: var(--site-sans);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+.post-title {
+  font-family: var(--site-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--global-text-color);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin: 2.6rem 0 0.9rem;
+  scroll-margin-top: 4.5rem;
+}
+
+article h3 {
+  font-size: 1.2rem;
+  line-height: 1.35;
+  margin: 1.8rem 0 0.6rem;
+  scroll-margin-top: 4.5rem;
+}
+
+strong,
+b {
+  font-weight: 600;
+}
+
+a,
+a:hover {
+  color: var(--global-theme-color);
+}
+
+article a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- page header */
+.post-header {
+  margin-bottom: 1.4rem;
+}
+
+.post-header .post-title {
+  font-size: 2.5rem;
+  line-height: 1.12;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.post-header .post-title .font-weight-bold {
+  font-weight: 600 !important;
+}
+
+.post-header .desc,
+.post-header .post-description {
+  color: var(--global-text-color-light);
+  font-size: 1.05rem;
+  margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- navigation */
+#navbar {
+  background-color: color-mix(in srgb, var(--global-bg-color) 90%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--global-divider-color);
+  box-shadow: none;
+}
+
+#navbar .navbar-brand {
+  font-family: var(--site-serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--global-text-color);
+}
+
+#navbar .navbar-brand .font-weight-bold {
+  font-weight: 600 !important;
+}
+
+#navbar .nav-link {
+  font-size: 0.95rem;
+  color: var(--global-text-color-light);
+}
+
+#navbar .nav-link:hover,
+#navbar .nav-item.active > .nav-link {
+  color: var(--global-text-color);
+}
+
+#navbar .nav-item.active > .nav-link {
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- footer */
+footer.sticky-bottom {
+  background: transparent;
+  color: var(--global-footer-text-color);
+  border-top: 1px solid var(--global-divider-color);
+  font-size: 0.82rem;
+  padding: 1.5rem 0 2.2rem;
+  margin-top: 4rem !important;
+  text-align: center;
+}
+
+footer.sticky-bottom a {
+  color: var(--global-footer-link-color);
+}
+
+/* ---------------------------------------------------------------- publications */
+.publications ol.bibliography li {
+  margin-bottom: 1.2rem;
+}
+
+.publications ol.bibliography li .abbr abbr {
+  background-color: transparent;
+  color: var(--global-text-color-light) !important;
+  border: 1px solid var(--global-divider-color);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.publications ol.bibliography li .preview {
+  box-shadow: none !important;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 6px !important;
+}
+
+.publications ol.bibliography li .title {
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 0.2rem;
+}
+
+.publications ol.bibliography li .author,
+.publications ol.bibliography li .periodical {
+  font-size: 0.93rem;
+}
+
+.publications ol.bibliography li .author em {
+  border-bottom: 0;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.publications ol.bibliography li .periodical {
+  color: var(--global-text-color-light);
+}
+
+.publications ol.bibliography li .links a.btn {
+  color: var(--global-text-color);
+  border: 1px solid var(--global-divider-color);
+  border-radius: 999px;
+  padding: 0.1rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: transparent;
+  margin: 0.4rem 0.3rem 0 0;
+}
+
+.publications ol.bibliography li .links a.btn:hover {
+  color: var(--global-theme-color);
+  border-color: var(--global-theme-color);
+}
+
+/* ---------------------------------------------------------------- shared pieces */
+/* a row of quiet links under a page header: icon + label, separated by space */
+.site-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.3rem;
+  margin: -0.4rem 0 1.6rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.95rem;
+}
+
+.site-links a {
+  color: var(--global-text-color);
+  text-decoration: none;
+}
+
+.site-links a:hover {
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
+.site-links i {
+  width: 1.1em;
+  margin-right: 0.3rem;
+  color: var(--global-text-color-light);
+  text-align: center;
+}
+
+/* primary and secondary buttons */
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.2rem;
+  margin: 1.1rem 0 0.4rem;
+}
+
+.site-btn {
+  display: inline-block;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  background: var(--global-theme-color);
+  color: var(--global-bg-color) !important;
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-decoration: none !important;
+}
+
+.site-btn:hover {
+  filter: brightness(1.12);
+}
+
+.site-arrow {
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none !important;
+}
+
+.site-arrow::after {
+  content: " →";
+}
+
+.site-note {
+  color: var(--global-text-color-light);
+  font-size: 0.93rem;
+}
+
+/* ---------------------------------------------------------------- home: research entries */
+.site-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 1.6rem;
+  align-items: center;
+  padding: 1.4rem;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 10px;
+}
+
+.site-feature-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--global-divider-color);
+}
+
+.site-feature h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1.35rem;
+}
+
+.site-feature h3 a {
+  color: var(--global-text-color);
+}
+
+.site-feature-sub {
+  margin: 0 0 0.7rem;
+  color: var(--global-text-color-light);
+  font-size: 0.95rem;
+}
+
+.site-feature p {
+  margin-bottom: 0.6rem;
+}
+
+.site-feature .site-actions {
+  margin-top: 0.9rem;
+}
+
+.site-item {
+  margin: 1.4rem 0 0;
+  padding: 0 1.4rem;
+}
+
+.site-item h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+}
+
+.site-item p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .site-feature {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .site-item {
+    padding: 0;
+  }
+
+  .post-header .post-title {
+    font-size: 2.1rem;
+  }
+
+  .publications ol.bibliography li .preview {
+    max-width: 14rem;
+  }
+}
+
+/* ---------------------------------------------------------------- IrisFlow page: tabs */
+.site-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.4rem;
+  margin: 0.4rem 0 1.2rem;
+  border-bottom: 1px solid var(--global-divider-color);
+}
+
+.site-tabs [role="tab"] {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.5rem 0 0.55rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--global-text-color-light);
+  cursor: pointer;
+}
+
+.site-tabs [role="tab"]:hover {
+  color: var(--global-text-color);
+}
+
+.site-tabs [role="tab"][aria-selected="true"] {
+  color: var(--global-text-color);
+  border-bottom-color: var(--global-theme-color);
+}
+
+.site-tabs [role="tab"]:focus-visible {
+  outline: 2px solid var(--global-theme-color);
+  outline-offset: 2px;
+}
+
+.site-tabpanel {
+  scroll-margin-top: 4.5rem;
+}
+
+.site-tabpanel > p:first-child {
+  margin-top: 0;
+}
