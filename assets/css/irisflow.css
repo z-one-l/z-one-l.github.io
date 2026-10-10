@@ -290,6 +290,145 @@
 .if-live .if-studio-ctl + .if-studio-ctl {
   margin-top: 0.9rem;
 }
+/* material picker: one row per family; selected chips are tinted, never-seen ones dashed */
+.if-live-mats {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--if-line);
+  border-radius: 10px;
+}
+.if-live-matrow {
+  display: grid;
+  grid-template-columns: 6.4rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+}
+.if-live-matlabel {
+  padding-top: 0.28rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--if-muted);
+}
+.if-live-matchips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.if-mat {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid var(--if-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--if-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.if-mat .if-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  opacity: 0.4;
+}
+.if-mat.unseen {
+  border-style: dashed;
+}
+.if-mat:hover {
+  border-color: var(--if-accent);
+  color: var(--if-text);
+}
+.if-mat.active {
+  color: var(--if-text);
+  background: color-mix(in srgb, var(--if-accent) 11%, transparent);
+  border-color: color-mix(in srgb, var(--if-accent) 55%, transparent);
+}
+.if-mat.active .if-swatch {
+  opacity: 1;
+}
+.if-mat:focus-visible,
+.if-mat-del:focus-visible,
+.if-linkbtn:focus-visible {
+  outline: 2px solid var(--if-accent);
+  outline-offset: 1px;
+}
+.if-mat-add {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--if-accent) 60%, transparent);
+  color: var(--if-accent);
+  font-weight: 500;
+}
+.if-mat-own {
+  display: inline-flex;
+  align-items: center;
+}
+.if-mat-own .if-mat {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.if-mat-del {
+  appearance: none;
+  align-self: stretch;
+  padding: 0 0.4rem;
+  border: 1px solid var(--if-line);
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  background: transparent;
+  color: var(--if-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.if-mat-del:hover {
+  color: var(--if-text);
+}
+.if-live-ownnote {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.if-live-matfoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+  margin: 0.45rem 0 0.9rem;
+}
+.if-live-matcount {
+  color: var(--if-text);
+  font-weight: 500;
+}
+.if-live-matcount.if-warn {
+  color: var(--if-r);
+}
+.if-linkbtn {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--if-accent);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.if-linkbtn:hover {
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .if-live-matrow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+  .if-live-matlabel {
+    padding-top: 0;
+  }
+}
+
 /* panels that swap in place share one grid cell, so the row keeps the height of the tallest */
 .if-live-stackcell {
   display: grid;
