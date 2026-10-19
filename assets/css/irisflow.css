@@ -353,6 +353,15 @@
 .if-mat.active .if-swatch {
   opacity: 1;
 }
+/* n,k data that stop short of the band: greyed out, selection kept for later */
+.if-mat.na {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.if-mat.na:hover {
+  border-color: var(--if-line);
+  color: var(--if-muted);
+}
 .if-mat:focus-visible,
 .if-mat-del:focus-visible,
 .if-linkbtn:focus-visible {
@@ -427,6 +436,50 @@
   .if-live-matlabel {
     padding-top: 0;
   }
+}
+
+/* the bands: each a pair of number fields, removable when there is more than one */
+.if-live-bands .if-group {
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+}
+.if-live-bandlist {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+}
+.if-live-band {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.if-live-bands .if-live-num {
+  width: 4.6rem;
+}
+.if-band-del {
+  appearance: none;
+  padding: 0 0.2rem;
+  border: 0;
+  background: none;
+  color: var(--if-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.if-band-del:hover {
+  color: var(--if-text);
+}
+.if-band-del:focus-visible {
+  outline: 2px solid var(--if-accent);
+  outline-offset: 1px;
+}
+.if-live-bands .if-linkbtn {
+  margin-left: 0.3rem;
+}
+.if-live-bands .if-linkbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  text-decoration: none;
 }
 
 /* panels that swap in place share one grid cell, so the row keeps the height of the tallest */
