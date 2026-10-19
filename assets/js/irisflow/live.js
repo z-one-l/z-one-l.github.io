@@ -7,7 +7,8 @@
   "use strict";
   if (typeof document === "undefined") return;
 
-  var WL_MIN = 380, WL_MAX = 1400, S = 128, KNOTS = 17, MIN_MATS = 3, MAX_MATS = 15;
+  /* the model was trained on 380-1400 nm; bands reach to 2500 nm, as in the paper's wavelength-extension tests */
+  var WL_MIN = 380, WL_MAX = 2500, TRAIN_MAX = 1400, S = 128, KNOTS = 17, MIN_MATS = 3, MAX_MATS = 15, MAX_BANDS = 3, STEPS = 15;
   /* id, display name, class, seen in training; mirrors materials.json in the private bundle */
   var MATERIALS = [["Ag", "Ag", "metal", 1], ["Al2O3", "Al2O3", "dielectric", 1], ["Cr", "Cr", "metal", 1], ["gsst-a", "GSST-a", "phase-change", 1], ["gsst-b", "GSST-b", "phase-change", 1], ["gst-a", "GST-a", "phase-change", 1], ["gst-b", "GST-b", "phase-change", 1], ["h4", "h4", "dielectric", 1], ["Si", "Si", "semiconductor", 1], ["SiO2", "SiO2", "dielectric", 1], ["ss-a", "SS-a", "phase-change", 1], ["ss-b", "SS-b", "phase-change", 1], ["Ta2O5", "Ta2O5", "dielectric", 1], ["Ti", "Ti", "metal", 1], ["TiO2", "TiO2", "dielectric", 1],
     ["Au", "Au", "metal", 0], ["Al", "Al", "metal", 0], ["W", "W", "metal", 0], ["Pt", "Pt", "metal", 0], ["Nb", "Nb", "metal", 0], ["ZnO", "ZnO", "dielectric", 0], ["CeO2", "CeO2", "dielectric", 0], ["Y2O3", "Y2O3", "dielectric", 0], ["HfO2", "HfO2", "dielectric", 0], ["ZrO2", "ZrO2", "dielectric", 0], ["ITO", "ITO", "conductor", 0], ["AZO", "AZO", "conductor", 0], ["FTO", "FTO", "conductor", 0], ["PET", "PET", "polymer", 0], ["PMMA", "PMMA", "polymer", 0]];
@@ -15,8 +16,13 @@
      the red R and blue T curves */
   var MAT_COL = { Ag: "#a7adb5", Al2O3: "#9b8fd6", Cr: "#5d6470", "gsst-a": "#8e5cc4", "gsst-b": "#6d3fa3", "gst-a": "#b46fc9", "gst-b": "#8a3f9e", h4: "#4cb79a", Si: "#8a5a3c", SiO2: "#7cc6e6", "ss-a": "#c58bd8", "ss-b": "#a35cb3", Ta2O5: "#d6b23a", Ti: "#7b8794", TiO2: "#e58a2e",
     Au: "#d4a72c", Al: "#c3c9d1", W: "#6f7a86", Pt: "#959da8", Nb: "#56606c", ZnO: "#9ccf63", CeO2: "#e0c46c", Y2O3: "#69b3a2", HfO2: "#5fa8b8", ZrO2: "#b7a26a", ITO: "#3fae8e", AZO: "#7fbf9a", FTO: "#4f9a7a", PET: "#e39bb5", PMMA: "#d88aa0" };
+  /* materials whose measured n,k stop short of 2500 nm: [end of the data, usable up to] in nm. Usable means the data
+     end plus a 50 nm edge hold, or 1400 nm, as in training, when the data end earlier; the rest reach 2500 nm.
+     Mirrors nk_range_nm / nk_max_nm in materials.json. */
+  var NK_LIMIT = { Al2O3: [980, 1400], Cr: [1240, 1400], h4: [800, 1400], Ti: [1100, 1400], CeO2: [1000, 1400], AZO: [900, 1400],
+    "gsst-a": [1600, 1650], "gsst-b": [1600, 1650], "ss-a": [1600, 1650], "ss-b": [1600, 1650], ITO: [1689, 1739] };
   var MAT = {};
-  MATERIALS.forEach(function (m) { MAT[m[0]] = { id: m[0], name: m[1], cls: m[2], trained: !!m[3], col: MAT_COL[m[0]] }; });
+  MATERIALS.forEach(function (m) { MAT[m[0]] = { id: m[0], name: m[1], cls: m[2], trained: !!m[3], col: MAT_COL[m[0]], nkMax: NK_LIMIT[m[0]] ? NK_LIMIT[m[0]][1] : WL_MAX }; });
   /* rows of the material picker, by class */
   var FAMILIES = [["Dielectrics", ["dielectric"]], ["Metals", ["metal"]], ["Phase-change", ["phase-change"]], ["Other", ["semiconductor", "conductor", "polymer"]]];
   /* materials a visitor uploads as n,k data: how many, how many rows are sent, and their colours */
@@ -38,8 +44,19 @@
     canvas.style.width = w + "px"; canvas.style.height = h + "px";
     var ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return ctx;
   }
-  /* 128 points evenly spaced in 1/lambda, like the training data */
-  function kGrid(lo, hi) { var g = []; for (var i = 0; i < S; i++) g.push(1 / (1 / hi + (1 / lo - 1 / hi) * i / (S - 1))); return g.reverse(); }
+  /* n points evenly spaced in 1/lambda with both ends pinned, like the training data */
+  function kGrid(lo, hi, n) { var g = []; for (var i = 0; i < n; i++) g.push(1 / (1 / hi + (1 / lo - 1 / hi) * i / (n - 1))); g.reverse(); g[0] = lo; g[n - 1] = hi; return g; }
+  /* the paper's grid over several bands: the 128 points are shared out by each band's width in 1/lambda (at least 2
+     each, leftovers to the widest), k-uniform within each band; gaps marks the index where each later band starts */
+  function bandGrid(bands) {
+    var w = bands.map(function (b) { return 1 / b[0] - 1 / b[1]; }), sum = w.reduce(function (a, x) { return a + x; }, 0);
+    var counts = w.map(function (x) { return Math.floor((S - 2 * bands.length) * x / sum) + 2; });
+    var order = w.map(function (x, i) { return i; }).sort(function (a, b) { return w[b] - w[a]; });
+    for (var i = 0, left = S - counts.reduce(function (a, x) { return a + x; }, 0); i < left; i++) counts[order[i % bands.length]]++;
+    var wl = [], gaps = {};
+    bands.forEach(function (b, j) { if (j) gaps[wl.length] = true; wl = wl.concat(kGrid(b[0], b[1], counts[j])); });
+    return { wl: wl, gaps: gaps };
+  }
   function interp(x, xs, ys) {
     if (x <= xs[0]) return ys[0];
     var n = xs.length; if (x >= xs[n - 1]) return ys[n - 1];
@@ -62,6 +79,8 @@
     var presets = [], st = {
       mode: "preset", preset: 0, target: null,
       draw: { lo: 420, hi: 1000, R: [], T: [], edit: "R", linked: true },
+      /* the bands each mode samples; null for a preset means its own grid, exactly as in the paper */
+      bands: { preset: null, draw: [[420, 1000]], csv: null },
       csv: null, mats: {}, layers: 18, samples: 16, rank: "match",
       result: null, example: false, pick: 0, busy: false, hover: -1,
       own: [] /* ids of uploaded materials, in upload order */
@@ -81,10 +100,7 @@
     var modeCell = el("div", "if-live-stackcell"), pPreset = el("div", "if-live-mode"), pDraw = el("div", "if-live-mode"), pCsv = el("div", "if-live-mode");
     modeCell.appendChild(pPreset); modeCell.appendChild(pDraw); modeCell.appendChild(pCsv); row1.appendChild(modeCell);
     var presetSel = el("select", "if-live-select"); presetSel.setAttribute("aria-label", "Preset target"); pPreset.appendChild(presetSel);
-    presetSel.addEventListener("change", function () { st.preset = +presetSel.value; st.layers = presets[st.preset].layers; syncLayers(); setTarget(); });
-    var gBand = grp("band (nm)", pDraw), loIn = el("input", "if-live-num"), hiIn = el("input", "if-live-num");
-    [loIn, hiIn].forEach(function (inp, i) { inp.type = "number"; inp.min = WL_MIN; inp.max = WL_MAX; inp.step = 10; inp.value = i ? st.draw.hi : st.draw.lo; inp.setAttribute("aria-label", i ? "Band end (nm)" : "Band start (nm)"); inp.addEventListener("change", onBand); });
-    gBand.appendChild(loIn); gBand.appendChild(el("span", "if-small", "–")); gBand.appendChild(hiIn);
+    presetSel.addEventListener("change", function () { st.preset = +presetSel.value; st.layers = presets[st.preset].layers; st.bands.preset = null; syncLayers(); setTarget(); });
     var gEdit = grp("drag", pDraw), editR = pill("R", function () { st.draw.edit = "R"; syncDraw(); }), editT = pill("T", function () { st.draw.edit = "T"; syncDraw(); });
     var linkBtn = pill("T = 1 − R", function () { st.draw.linked = !st.draw.linked; if (st.draw.linked) st.draw.T = st.draw.R.map(function (r) { return 1 - r; }); syncDraw(); setTarget(); });
     linkBtn.title = "Lossless target: no absorption, so T follows R";
@@ -92,6 +108,21 @@
     var fileIn = el("input", "if-live-file"); fileIn.type = "file"; fileIn.accept = ".csv,.txt,.tsv,text/csv,text/plain"; fileIn.setAttribute("aria-label", "Target spectrum file");
     pCsv.appendChild(fileIn);
     fileIn.addEventListener("change", function () { var f = fileIn.files && fileIn.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { parseCsv(String(rd.result), f.name); }; rd.readAsText(f); });
+
+    /* the bands, shared by all three sources: one or more ranges in nm, each a pair of number fields */
+    var bandRow = el("div", "if-studio-ctl if-live-bands"), gBands = grp("bands (nm)", bandRow), bandList = el("span", "if-live-bandlist");
+    var addBand = el("button", "if-linkbtn", "+ band"), resetBands = el("button", "if-linkbtn", "reset");
+    addBand.type = resetBands.type = "button"; addBand.title = "Add another band; the model reads only the wavelengths inside the bands";
+    gBands.appendChild(bandList); gBands.appendChild(addBand); gBands.appendChild(resetBands);
+    addBand.addEventListener("click", function () {
+      /* the new band goes in the middle of the widest stretch of the target that no band covers */
+      var b = curBands().map(function (x) { return x.slice(); }), d = domain(), free = [], prev = d[0];
+      b.forEach(function (x) { free.push([prev, x[0]]); prev = x[1]; }); free.push([prev, d[1]]);
+      var f = free.sort(function (p, q) { return (q[1] - q[0]) - (p[1] - p[0]); })[0], w = f[1] - f[0];
+      if (w < 40) { status.textContent = "No room for another band in this target's range (" + Math.round(d[0]) + "–" + Math.round(d[1]) + " nm); narrow a band first."; return; }
+      b.push([f[0] + w / 4, f[1] - w / 4]); editBands(b);
+    });
+    resetBands.addEventListener("click", function () { st.bands[st.mode] = defaultBands(); setTarget(); });
 
     var chartBox = el("div", "if-live-chart"), chart = document.createElement("canvas"); chartBox.appendChild(chart);
     var desc = el("div", "if-small if-live-desc");
@@ -102,7 +133,8 @@
     function matChip(id) {
       var m = MAT[id], b = el("button", "if-mat" + (m.trained ? "" : " unseen"), '<span class="if-swatch" style="background:' + m.col + '"></span>' + esc(m.name));
       b.type = "button"; b.setAttribute("aria-pressed", "false");
-      b.title = m.own ? m.name + " · your n,k data, " + Math.round(m.wl[0]) + "–" + Math.round(m.wl[m.wl.length - 1]) + " nm" : m.cls + (m.trained ? " · seen in training" : " · never seen in training: the model gets only its n,k curve");
+      b.setAttribute("data-title", m.own ? m.name + " · your n,k data, " + Math.round(m.wl[0]) + "–" + Math.round(m.wl[m.wl.length - 1]) + " nm" : m.cls + (m.trained ? " · seen in training" : " · never seen in training: the model gets only its n,k curve") + (m.nkMax < WL_MAX ? " · n,k data to " + Math.max(TRAIN_MAX, NK_LIMIT[id][0]) + " nm" : ""));
+      b.title = b.getAttribute("data-title");
       b.addEventListener("click", function () { toggleMat(id); }); matBtns[id] = b; return b;
     }
     FAMILIES.forEach(function (f) {
@@ -126,8 +158,8 @@
     allTrained.type = noneBtn.type = "button";
     allTrained.addEventListener("click", function () { st.mats = {}; MATERIALS.forEach(function (m) { if (m[3]) st.mats[m[0]] = true; }); syncMats(); });
     noneBtn.addEventListener("click", function () { st.mats = {}; syncMats(); });
-    matFoot.appendChild(matCount); matFoot.appendChild(el("span", "if-small", "Dashed: never seen in training; the model gets only its n,k curve."));
-    matFoot.appendChild(allTrained); matFoot.appendChild(noneBtn);
+    matFoot.appendChild(matCount); matFoot.appendChild(allTrained); matFoot.appendChild(noneBtn);
+    matFoot.appendChild(el("span", "if-small", "Dashed: never seen in training; the model gets only its n,k curve. Faded: no n,k data this far."));
     var row2b = el("div", "if-studio-ctl if-live-sizes");
     var gL = grp("layers", row2b), layerIn = el("input"), layerVal = el("span", "if-gval");
     layerIn.type = "range"; layerIn.min = 2; layerIn.max = 60; layerIn.step = 1; layerIn.setAttribute("aria-label", "Number of layers");
@@ -157,30 +189,77 @@
     });
     [outHead, picks, stackBox, hoverLine, tableBox, actions].forEach(function (x) { out.appendChild(x); });
 
-    [row1, chartBox, desc, row2, matBox, matFoot, row2b, row3, out].forEach(function (x) { container.appendChild(x); });
+    [row1, bandRow, chartBox, desc, row2, matBox, matFoot, row2b, row3, out].forEach(function (x) { container.appendChild(x); });
 
     /* ---- target ---- */
     function drawCurve(arr, lam) { var u = clamp((lam - st.draw.lo) / (st.draw.hi - st.draw.lo), 0, 1) * (KNOTS - 1), i = Math.min(KNOTS - 2, Math.floor(u)), g = u - i, w = (1 - Math.cos(Math.PI * g)) / 2; return arr[i] * (1 - w) + arr[i + 1] * w; }
+    /* where the current source defines a target: a preset or a file on its own points, a drawing anywhere */
+    function source() {
+      if (st.mode === "preset") { var p = presets[st.preset]; return p ? { wl: p.wavelengths_nm, R: p.R, T: p.T } : null; }
+      return st.mode === "csv" && st.csv ? st.csv.raw : null;
+    }
+    function domain() { var s = source(); return s ? [Math.max(WL_MIN, s.wl[0]), Math.min(WL_MAX, s.wl[s.wl.length - 1])] : [WL_MIN, WL_MAX]; }
+    /* a preset's own bands: its grid split where it jumps over a region that is not scored */
+    function nativeBands() {
+      var p = presets[st.preset]; if (!p) return [];
+      var wl = p.wavelengths_nm, gp = gapsOf(wl), out = [], a = 0;
+      for (var i = 1; i <= wl.length; i++) if (i === wl.length || gp[i]) { out.push([wl[a], wl[i - 1]]); a = i; }
+      return out;
+    }
+    function defaultBands() { return st.mode === "draw" ? [[420, 1000]] : st.mode === "csv" && st.csv ? [domain()] : null; }
+    function curBands() { return st.bands[st.mode] || (st.mode === "preset" ? nativeBands() : []); }
+    /* edits are kept inside the target's range, at least 10 nm wide, sorted, and merged where they overlap */
+    function editBands(list) {
+      var d = domain(), out = [];
+      list.map(function (b) { var lo = clamp(Math.round(b[0]), d[0], d[1] - 10); return [lo, clamp(Math.round(b[1]), lo + 10, d[1])]; })
+        .sort(function (a, b) { return a[0] - b[0]; })
+        .forEach(function (b) { var l = out[out.length - 1]; if (l && b[0] <= l[1]) l[1] = Math.max(l[1], b[1]); else out.push(b); });
+      st.bands[st.mode] = out; setTarget();
+    }
+    function syncBands() {
+      var b = curBands(), d = domain();
+      bandList.innerHTML = "";
+      b.forEach(function (x, j) {
+        var wrap = el("span", "if-live-band");
+        [0, 1].forEach(function (e) {
+          var inp = el("input", "if-live-num"); inp.type = "number"; inp.step = 10; inp.min = Math.floor(d[0]); inp.max = Math.ceil(d[1]); inp.value = Math.round(x[e]);
+          inp.setAttribute("aria-label", "Band " + (j + 1) + (e ? " end" : " start") + " (nm)");
+          inp.addEventListener("change", function () { var nb = curBands().map(function (y) { return y.slice(); }); nb[j][e] = +inp.value || x[e]; editBands(nb); });
+          wrap.appendChild(inp); if (!e) wrap.appendChild(el("span", "if-small", "–"));
+        });
+        if (b.length > 1) {
+          var del = el("button", "if-band-del", "×"); del.type = "button"; del.title = "Remove this band"; del.setAttribute("aria-label", "Remove band " + (j + 1));
+          del.addEventListener("click", function () { editBands(curBands().filter(function (y, i) { return i !== j; })); });
+          wrap.appendChild(del);
+        }
+        bandList.appendChild(wrap);
+      });
+      addBand.disabled = !b.length || b.length >= MAX_BANDS;
+      resetBands.hidden = !st.bands[st.mode] || JSON.stringify(st.bands[st.mode]) === JSON.stringify(defaultBands());
+    }
     function setTarget() {
-      var t = null;
-      if (st.mode === "preset" && presets.length) { var p = presets[st.preset]; t = { wl: p.wavelengths_nm, R: p.R, T: p.T }; }
-      else if (st.mode === "draw") { var wl = kGrid(st.draw.lo, st.draw.hi); t = { wl: wl, R: wl.map(function (l) { return drawCurve(st.draw.R, l); }), T: wl.map(function (l) { return drawCurve(st.draw.T, l); }) }; }
-      else if (st.mode === "csv" && st.csv) t = st.csv.t;
-      st.target = t; st.result = null; st.pick = 0;
-      if (st.example) { st.example = false; status.textContent = ""; }
-      if (t) t.gaps = gapsOf(t.wl);
-      syncDesc(); render(); renderOut();
+      var t = null, b = curBands();
+      if (st.mode === "preset" && presets.length && !st.bands.preset) { var p = presets[st.preset]; t = { wl: p.wavelengths_nm, R: p.R, T: p.T, gaps: gapsOf(p.wavelengths_nm) }; }
+      else if (b.length) {
+        var g = bandGrid(b), s = source();
+        if (st.mode === "draw") { st.draw.lo = b[0][0]; st.draw.hi = b[b.length - 1][1]; s = { f: drawCurve }; }
+        if (s) t = { wl: g.wl, gaps: g.gaps,
+          R: g.wl.map(function (l) { return s.f ? s.f(st.draw.R, l) : interp(l, s.wl, s.R); }),
+          T: g.wl.map(function (l) { return s.f ? s.f(st.draw.T, l) : interp(l, s.wl, s.T); }) };
+      }
+      st.target = t; st.result = null; st.pick = 0; st.example = false;
+      if (!st.busy) status.textContent = ""; /* a new target: earlier messages and run times no longer apply */
+      ownHelp();
+      syncBands(); syncMats(); syncDesc(); render(); renderOut();
     }
     function syncDesc() {
-      var h = "";
-      if (st.mode === "preset") h = presets.length ? esc(presets[st.preset].desc) + " One of the application targets from the paper; the gaps are edge regions that are not scored." : "Loading presets…";
+      var h = "", t = st.target, gaps = t && Object.keys(t.gaps).length;
+      if (st.mode === "preset") h = presets.length ? esc(presets[st.preset].desc) + " One of the application targets from the paper" + (gaps && !st.bands.preset ? "; the gaps are edge regions that are not scored." : ".") : "Loading presets…";
       else if (st.mode === "draw") h = "Drag on the chart to shape the " + (st.draw.edit === "R" ? "reflectance R" : "transmittance T") + " target. " + (st.draw.linked ? "T follows as 1 − R (no absorption)." : "R and T are separate, so the target may absorb light.");
-      else h = st.csv ? esc(st.csv.msg) : "Columns: wavelength (nm or µm), R, and optionally T (otherwise T = 1 − R). Values in 0–1 or %. The model covers " + WL_MIN + "–" + WL_MAX + " nm; the rest is cut.";
+      else h = st.csv ? esc(st.csv.msg) : "Columns: wavelength (nm or µm), R, and optionally T (otherwise T = 1 − R). Values in 0–1 or %. The model reads " + WL_MIN + "–" + WL_MAX + " nm; the rest is cut.";
+      if (gaps && (st.mode !== "preset" || st.bands.preset)) h += " Grey stretches lie between the bands and are left out of the request.";
+      if (t && t.wl[t.wl.length - 1] > TRAIN_MAX + 1) h += " The tinted part lies beyond the model's " + WL_MIN + "–" + TRAIN_MAX + " nm training band.";
       desc.innerHTML = h;
-    }
-    function onBand() {
-      var lo = clamp(+loIn.value || WL_MIN, WL_MIN, WL_MAX - 50), hi = clamp(+hiIn.value || WL_MAX, lo + 50, WL_MAX);
-      loIn.value = st.draw.lo = Math.round(lo); hiIn.value = st.draw.hi = Math.round(hi); setTarget();
     }
     function parseCsv(text, name) {
       var rows = [];
@@ -194,11 +273,10 @@
       var wl = rows.map(function (r) { return um ? r[0] * 1000 : r[0]; }), sc = pct ? 0.01 : 1;
       var R = rows.map(function (r) { return clamp(r[1] * sc, 0, 1); }), T = rows.map(function (r) { return r.length > 2 ? clamp(r[2] * sc, 0, 1) : 1 - clamp(r[1] * sc, 0, 1); });
       var lo = Math.max(wl[0], WL_MIN), hi = Math.min(wl[wl.length - 1], WL_MAX);
-      if (hi - lo < 20) { st.csv = null; status.textContent = name + " does not overlap " + WL_MIN + "–" + WL_MAX + " nm."; syncDesc(); render(); return; }
-      var g = kGrid(lo, hi);
-      st.csv = { t: { wl: g, R: g.map(function (l) { return interp(l, wl, R); }), T: g.map(function (l) { return interp(l, wl, T); }) },
-        msg: name + ": " + rows.length + " rows" + (um ? " (µm)" : "") + (pct ? " (%)" : "") + (rows[0].length > 2 ? "" : ", T taken as 1 − R") + ", resampled to " + S + " points over " + Math.round(lo) + "–" + Math.round(hi) + " nm." };
-      status.textContent = ""; setTarget();
+      if (hi - lo < 20) { st.csv = null; setTarget(); status.textContent = name + " does not overlap " + WL_MIN + "–" + WL_MAX + " nm."; return; }
+      st.csv = { raw: { wl: wl, R: R, T: T },
+        msg: name + ": " + rows.length + " rows" + (um ? " (µm)" : "") + (pct ? " (%)" : "") + (rows[0].length > 2 ? "" : ", T taken as 1 − R") + ", resampled to " + S + " points inside the bands." };
+      st.bands.csv = [[lo, hi]]; status.textContent = ""; setTarget();
     }
 
     /* ---- controls sync ---- */
@@ -215,15 +293,36 @@
       linkBtn.classList.toggle("active", st.draw.linked); editT.disabled = st.draw.linked;
       syncDesc(); render();
     }
+    /* a material can be used when its n,k data cover the target's wavelengths; the others stay greyed out (and keep
+       their selection for when the band comes back within reach) */
+    function covers(id) {
+      var m = MAT[id], t = st.target; if (!t) return true;
+      var lo = t.wl[0], hi = t.wl[t.wl.length - 1];
+      return m.own ? m.wl[0] <= lo + 1 && m.wl[m.wl.length - 1] >= hi - 1 : m.nkMax >= hi - 1;
+    }
+    function gapNote(id) {
+      var m = MAT[id], t = st.target;
+      if (m.own) return m.name + "’s n,k data cover " + Math.round(m.wl[0]) + "–" + Math.round(m.wl[m.wl.length - 1]) + " nm, but the target spans " + Math.round(t.wl[0]) + "–" + Math.round(t.wl[t.wl.length - 1]) + " nm";
+      return m.name + " has no n,k data beyond " + Math.max(TRAIN_MAX, NK_LIMIT[id][0]) + " nm, and the target reaches " + Math.round(t.wl[t.wl.length - 1]) + " nm";
+    }
     function syncMats() {
-      Object.keys(matBtns).forEach(function (id) { var on = !!st.mats[id]; matBtns[id].classList.toggle("active", on); matBtns[id].setAttribute("aria-pressed", on ? "true" : "false"); });
+      var left = 0;
+      Object.keys(matBtns).forEach(function (id) {
+        var on = !!st.mats[id], ok = covers(id), b = matBtns[id];
+        b.classList.toggle("active", on && ok); b.classList.toggle("na", !ok);
+        b.setAttribute("aria-pressed", on && ok ? "true" : "false"); b.setAttribute("aria-disabled", ok ? "false" : "true");
+        b.title = ok ? b.getAttribute("data-title") : gapNote(id) + ".";
+        if (on && !ok) left++;
+      });
       var n = nMats();
-      matCount.textContent = n + " selected" + (n < MIN_MATS ? ": choose at least " + MIN_MATS : n > MAX_MATS ? ": at most " + MAX_MATS + ", deselect " + (n - MAX_MATS) : "");
+      matCount.textContent = n + " selected" + (n < MIN_MATS ? ": choose at least " + MIN_MATS : n > MAX_MATS ? ": at most " + MAX_MATS + ", deselect " + (n - MAX_MATS) : "") +
+        (left ? " · " + left + " more faded out at this band" : "");
       matCount.classList.toggle("if-warn", n < MIN_MATS || n > MAX_MATS);
     }
-    function selected() { return MATERIALS.map(function (m) { return m[0]; }).concat(st.own).filter(function (k) { return st.mats[k]; }); }
+    function selected() { return MATERIALS.map(function (m) { return m[0]; }).concat(st.own).filter(function (k) { return st.mats[k] && covers(k); }); }
     function nMats() { return selected().length; }
     function toggleMat(id) {
+      if (!covers(id)) { status.textContent = gapNote(id) + ". Narrow the bands, or add n,k data of your own that reach further."; return; }
       if (!st.mats[id] && nMats() >= MAX_MATS) { status.textContent = "At most " + MAX_MATS + " materials per request; deselect one first."; return; }
       st.mats[id] = !st.mats[id]; syncMats();
     }
@@ -251,14 +350,14 @@
       del.addEventListener("click", function () { m.removed = true; delete st.mats[id]; st.own.splice(st.own.indexOf(id), 1); delete matBtns[id]; wrap.remove(); ownHelp(); syncMats(); });
       wrap.appendChild(matChip(id)); wrap.appendChild(del); ownChips.insertBefore(wrap, addBtn);
       st.mats[id] = true; /* always: it is the one the visitor wants to try, even if that goes over the limit for now */
-      var lo = m.wl[0], hi = m.wl[m.wl.length - 1], t = st.target, covers = !t || (lo <= t.wl[0] + 1 && hi >= t.wl[t.wl.length - 1] - 1);
+      var lo = m.wl[0], hi = m.wl[m.wl.length - 1], t = st.target, ok = covers(id);
       ownNote.textContent = "Added " + name + ": " + Math.round(lo) + "–" + Math.round(hi) + " nm, " + rows.length + " points" + (um ? " (µm)" : "") + (rows[0].length > 2 ? "" : ", k = 0") + "." +
-        (covers ? (nMats() > MAX_MATS ? " Deselect another material to stay within " + MAX_MATS + "." : "") : " It does not cover the current target (" + Math.round(t.wl[0]) + "–" + Math.round(t.wl[t.wl.length - 1]) + " nm).");
+        (ok ? (nMats() > MAX_MATS ? " Deselect another material to stay within " + MAX_MATS + "." : "") : " It does not cover the current target (" + Math.round(t.wl[0]) + "–" + Math.round(t.wl[t.wl.length - 1]) + " nm), so it is left out for now.");
       syncMats();
     }
     function exampleNk() {
       var s = "wavelength_nm,n,k\n";
-      for (var l = 380; l <= 1400; l += 20) { var u = l / 1000; s += l + "," + (2.05 + 0.025 / (u * u)).toFixed(4) + ",0\n"; }
+      for (var l = WL_MIN; l <= WL_MAX; l += 20) { var u = l / 1000; s += l + "," + (2.05 + 0.025 / (u * u)).toFixed(4) + ",0\n"; }
       return s;
     }
     function downloadText(text, name) {
@@ -271,7 +370,7 @@
 
     /* ---- spectrum chart ---- */
     var CH = 250, PAD = { l: 34, r: 12, t: 24, b: 26 }, geo = null;
-    function xRange() { var t = st.target; if (st.mode === "draw") return [st.draw.lo, st.draw.hi]; return t ? [t.wl[0], t.wl[t.wl.length - 1]] : [WL_MIN, WL_MAX]; }
+    function xRange() { var t = st.target; if (st.mode === "draw") return [st.draw.lo, st.draw.hi]; return t ? [t.wl[0], t.wl[t.wl.length - 1]] : [WL_MIN, TRAIN_MAX]; }
     function render() {
       var W = Math.max(260, Math.floor(chartBox.getBoundingClientRect().width) || 600), ctx = setupCanvas(chart, W, CH), th = theme(container);
       var xr = xRange(), x0 = PAD.l, x1 = W - PAD.r, y0 = CH - PAD.b, y1 = PAD.t;
@@ -279,27 +378,40 @@
       function Y(v) { return y0 - v * (y0 - y1); }
       geo = { X: X, Y: Y, x0: x0, x1: x1, y0: y0, y1: y1, xr: xr };
       ctx.clearRect(0, 0, W, CH);
+      var t = st.target, d = current();
+      /* grey: between bands, left out of the request; tinted: beyond the 1400 nm end of the training band */
+      if (t) Object.keys(t.gaps).forEach(function (i) { var a = X(t.wl[i - 1]), b = X(t.wl[i]); ctx.fillStyle = th.line; ctx.fillRect(a, y1, b - a, y0 - y1); });
+      if (xr[1] > TRAIN_MAX + 1) {
+        var xa = Math.max(x0, X(TRAIN_MAX)); ctx.fillStyle = th.accent; ctx.globalAlpha = 0.07; ctx.fillRect(xa, y1, x1 - xa, y0 - y1); ctx.globalAlpha = 1;
+        if (xa > x0) { ctx.strokeStyle = th.accent; ctx.globalAlpha = 0.45; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(xa, y1); ctx.lineTo(xa, y0); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; }
+      }
       ctx.font = "11px system-ui, sans-serif"; ctx.textBaseline = "middle";
       ctx.strokeStyle = th.line; ctx.lineWidth = 1; ctx.fillStyle = th.muted; ctx.textAlign = "right";
       [0, 0.5, 1].forEach(function (v) { ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke(); ctx.fillText(String(v), x0 - 6, Y(v)); });
       var span = xr[1] - xr[0], step = [10, 20, 50, 100, 200, 250, 500].filter(function (s) { return span / s <= (W < 480 ? 5 : 9); })[0] || 500;
       ctx.textAlign = "center"; ctx.textBaseline = "top";
       /* a label that would cross the axis start is left out, so it never runs into the "nm" unit */
-      for (var l = Math.ceil(xr[0] / step) * step; l <= xr[1] + 1e-6; l += step) { if (X(l) - ctx.measureText(String(l)).width / 2 >= x0 - 2) ctx.fillText(String(l), X(l), y0 + 6); ctx.beginPath(); ctx.moveTo(X(l), y0); ctx.lineTo(X(l), y0 + 3); ctx.stroke(); }
+      /* a label at the right end is pulled in so it is not clipped */
+      for (var l = Math.ceil(xr[0] / step) * step; l <= xr[1] + 1e-6; l += step) { var tw = ctx.measureText(String(l)).width; if (X(l) - tw / 2 >= x0 - 2) ctx.fillText(String(l), Math.min(X(l), W - 1 - tw / 2), y0 + 6); ctx.beginPath(); ctx.moveTo(X(l), y0); ctx.lineTo(X(l), y0 + 3); ctx.stroke(); }
       ctx.textAlign = "right"; ctx.fillText("nm", x0 - 6, y0 + 6);
       function line(wl, ys, col, dash, width, gaps) {
         ctx.strokeStyle = col; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath();
         for (var i = 0; i < wl.length; i++) { if (i === 0 || (gaps && gaps[i])) ctx.moveTo(X(wl[i]), Y(ys[i])); else ctx.lineTo(X(wl[i]), Y(ys[i])); }
         ctx.stroke(); ctx.setLineDash([]);
       }
-      var t = st.target, d = current();
       if (t) { line(t.wl, t.R, th.R, [5, 4], 1.4, t.gaps); line(t.wl, t.T, th.T, [5, 4], 1.4, t.gaps); }
       if (d) { var rw = st.result.wavelengths_nm; line(rw, d.R, th.R, [], 2.2, t && t.gaps); line(rw, d.T, th.T, [], 2.2, t && t.gaps); }
       if (st.mode === "draw") {
         ["R", "T"].forEach(function (c) {
           if (st.draw.linked && c === "T") return;
           var on = st.draw.edit === c; ctx.fillStyle = on ? (c === "R" ? th.R : th.T) : th.bg; ctx.strokeStyle = c === "R" ? th.R : th.T; ctx.lineWidth = 1.2;
-          st.draw[c].forEach(function (v, k) { var lam = st.draw.lo + (st.draw.hi - st.draw.lo) * k / (KNOTS - 1); ctx.beginPath(); ctx.arc(X(lam), Y(v), on ? 3.6 : 2.6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); });
+          var bs = curBands(); /* knots between bands shape nothing that is sent, so they are faint */
+          st.draw[c].forEach(function (v, k) {
+            var lam = st.draw.lo + (st.draw.hi - st.draw.lo) * k / (KNOTS - 1);
+            ctx.globalAlpha = bs.some(function (b) { return lam >= b[0] - 1 && lam <= b[1] + 1; }) ? 1 : 0.3;
+            ctx.beginPath(); ctx.arc(X(lam), Y(v), on ? 3.6 : 2.6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+          });
+          ctx.globalAlpha = 1;
         });
       }
       /* legend */
@@ -430,12 +542,10 @@
 
     function run() {
       if (st.busy || !st.target) { if (!st.target) status.textContent = st.mode === "csv" ? "Choose a CSV file first." : "The target is not ready yet."; return; }
-      var mats = selected(), tlo = st.target.wl[0], thi = st.target.wl[st.target.wl.length - 1];
-      if (mats.length < MIN_MATS || mats.length > MAX_MATS) { status.textContent = (mats.length < MIN_MATS ? "Choose at least " + MIN_MATS : "Choose at most " + MAX_MATS) + " materials: the model was trained with pools of 3 to 15. It does not have to use all of them."; return; }
-      var short = mats.filter(function (k) { var m = MAT[k]; return m.own && (m.wl[0] > tlo + 1 || m.wl[m.wl.length - 1] < thi - 1); })[0];
-      if (short) { var sm = MAT[short]; status.textContent = sm.name + " has n,k data for " + Math.round(sm.wl[0]) + "–" + Math.round(sm.wl[sm.wl.length - 1]) + " nm, but the target spans " + Math.round(tlo) + "–" + Math.round(thi) + " nm. Deselect it or upload data covering the band."; return; }
+      var mats = selected(); /* only materials whose n,k data cover the target */
+      if (mats.length < MIN_MATS || mats.length > MAX_MATS) { status.textContent = (mats.length < MIN_MATS ? "Choose at least " + MIN_MATS : "Choose at most " + MAX_MATS) + " materials whose n,k data cover the target: the model was trained with pools of 3 to 15. It does not have to use all of them."; return; }
       var req = { wavelengths_nm: st.target.wl, R: st.target.R, T: st.target.T, materials: mats,
-        layers: st.layers, samples: st.samples, steps: 100, seed: Math.floor(Math.random() * 1e9) };
+        layers: st.layers, samples: st.samples, steps: STEPS, seed: Math.floor(Math.random() * 1e9) };
       var own = mats.filter(function (k) { return MAT[k].own; });
       if (own.length) req.custom_materials = own.map(function (k) { var m = MAT[k]; return { id: k, name: m.name, wavelengths_nm: m.wl, n: m.n, k: m.k }; });
       var t0 = Date.now(), timer = null, target = st.target;
@@ -462,7 +572,11 @@
     ownChips.appendChild(addBtn); ownChips.appendChild(nkIn); ownChips.appendChild(ownNote); ownHelp();
     syncMats(); syncLayers(); syncN(); syncDraw(); setMode("preset");
     fetch(PRESET_URL).then(function (r) { return r.json(); }).then(function (p) {
-      presets = p; presetSel.innerHTML = p.map(function (x, i) { return "<option value=\"" + i + "\">" + esc(x.name) + "</option>"; }).join("");
+      presets = p;
+      /* the paper's application targets, those inside the training band first, then those beyond it */
+      presetSel.innerHTML = [["Within the training band (380–1400 nm)", false], ["Beyond the training band (to 2500 nm)", true]].map(function (g) {
+        return "<optgroup label=\"" + g[0] + "\">" + p.map(function (x, i) { return !!x.beyond === g[1] ? "<option value=\"" + i + "\">" + esc(x.name) + "</option>" : ""; }).join("") + "</optgroup>";
+      }).join("");
       st.layers = p[0].layers; syncLayers(); setTarget();
       /* the first preset carries one earlier run of the default request, shown until the visitor changes something */
       if (p[0].example) {
