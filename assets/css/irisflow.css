@@ -633,3 +633,112 @@
     min-height: 4em;
   }
 }
+
+/* ---------------- story: why IrisFlow (story.js) ---------------- */
+.if-story {
+  --if-text: var(--global-text-color, #111);
+  --if-muted: var(--global-text-color-light, #828282);
+  --if-bg: var(--global-bg-color, #fff);
+  --if-card: var(--global-card-bg-color, #fff);
+  --if-line: var(--global-divider-color, #e6e6e6);
+  --if-accent: var(--global-theme-color, #b509ac);
+  --if-r: #d64545;
+  --if-t: #2f6fd6;
+  margin: 0.8rem 0 1.4rem;
+  border: 1px solid var(--if-line);
+  border-radius: 14px;
+  background: var(--if-card);
+  padding: 0.9rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.if-story-narr {
+  margin-top: 0.6rem;
+  border-top: 1px dashed var(--if-line);
+  padding-top: 0.55rem;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--if-text);
+}
+.if-story-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  margin-top: 0.6rem;
+}
+.if-story-ctl button {
+  appearance: none;
+  border: 1px solid var(--if-line);
+  background: var(--if-bg);
+  color: var(--if-text);
+  border-radius: 999px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.if-story-ctl button:hover {
+  border-color: var(--if-accent);
+}
+.if-story-ctl .if-story-play {
+  background: var(--if-accent);
+  border-color: var(--if-accent);
+  color: #fff;
+}
+.if-story-chs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+}
+.if-story-ctl .if-story-ch {
+  --p: 0%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--if-accent) 16%, var(--if-bg)) var(--p), var(--if-bg) var(--p));
+}
+.if-story-ch b {
+  color: var(--if-accent);
+  margin-right: 0.35rem;
+}
+.if-story-ctl .if-story-ch[aria-current="step"] {
+  border-color: var(--if-accent);
+}
+.if-story-lang {
+  display: inline-flex;
+  border: 1px solid var(--if-line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.if-story-ctl .if-story-lang button {
+  border: 0;
+  border-radius: 0;
+  padding: 0.28rem 0.65rem;
+}
+.if-story-ctl .if-story-lang button[aria-pressed="true"] {
+  background: var(--if-accent);
+  color: #fff;
+}
+/* frozen full-window layout used to record the video (#why=<t>,video) */
+.if-story.if-story-video {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--if-bg);
+}
+.if-story-video .if-story-narr {
+  font-size: 1.15rem;
+  line-height: 1.5;
+  text-align: center;
+  border-top: 0;
+}
+.if-story-video .if-story-ctl {
+  display: none;
+}
