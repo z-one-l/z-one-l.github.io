@@ -20,7 +20,7 @@ nav_order: 1
 
 ## Why IrisFlow {#if-why}
 
-<div class="if-story" data-if-story></div>
+<div class="if-story" data-if-story="sketch"></div>
 
 ## Try the real model {#if-live}
 
