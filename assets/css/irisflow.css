@@ -719,6 +719,30 @@
   background: var(--if-accent);
   color: #fff;
 }
+/* hand-drawn skin (data-if-story="sketch"): warm paper, ink, pigment colours; story.js adds the paper's grain */
+.if-story.if-sketch {
+  --if-bg: #f6f1e7;
+  --if-card: #f6f1e7;
+  --if-text: #2a2621;
+  --if-muted: #7b7366;
+  --if-line: #dcd3c3;
+  --if-r: #c4503c;
+  --if-t: #3b69ad;
+  background-size: 160px 160px;
+}
+html[data-theme="dark"] .if-story.if-sketch {
+  --if-bg: #1f1d1a;
+  --if-card: #1f1d1a;
+  --if-text: #ece6da;
+  --if-muted: #a59d90;
+  --if-line: #3f3a33;
+  --if-r: #e27561;
+  --if-t: #7ea6e6;
+}
+.if-sketch .if-story-narr {
+  font-family: "Source Serif 4", Georgia, "PingFang SC", "Microsoft YaHei", serif;
+  font-size: 1.05rem;
+}
 /* frozen full-window layout used to record the video (#why=<t>,video) */
 .if-story.if-story-video {
   position: fixed;
