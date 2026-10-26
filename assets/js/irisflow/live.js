@@ -162,7 +162,7 @@
     matFoot.appendChild(el("span", "if-small", "Dashed: never seen in training; the model gets only its n,k curve. Faded: no n,k data this far."));
     var row2b = el("div", "if-studio-ctl if-live-sizes");
     var gL = grp("layers", row2b), layerIn = el("input"), layerVal = el("span", "if-gval");
-    layerIn.type = "range"; layerIn.min = 2; layerIn.max = 60; layerIn.step = 1; layerIn.setAttribute("aria-label", "Number of layers");
+    layerIn.type = "range"; layerIn.min = 2; layerIn.max = 100; layerIn.step = 1; layerIn.setAttribute("aria-label", "Number of layers");
     layerIn.addEventListener("input", function () { st.layers = +layerIn.value; layerVal.textContent = st.layers; });
     gL.appendChild(layerIn); gL.appendChild(layerVal);
     var gN = grp("designs", row2b), nBtns = {};
